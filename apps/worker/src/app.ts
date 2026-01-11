@@ -6,7 +6,7 @@ import { applyErrorHandling } from "./middleware/error";
 import { healthRoutes } from "./routes/health";
 import { wsRoutes } from "./routes/ws";
 
-import { roomsRoutes } from "./routes/rooms";
+import { roomsRoutes } from "./routes/rooms/index";
 import { incidentsRoutes } from "./routes/incidents";
 
 const app = new Hono<{ Bindings: Bindings }>();
