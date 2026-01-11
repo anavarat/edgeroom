@@ -46,6 +46,7 @@ export const CreateChatMessageSchema = z.object({
   createdBy: PresenceSchema,
 });
 
+
 export const WsHelloSchema = z.object({
   kind: z.literal("hello"),
   user: PresenceSchema,

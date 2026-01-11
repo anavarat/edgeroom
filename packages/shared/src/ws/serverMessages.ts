@@ -1,43 +1,15 @@
-// edgeroom/packages/shared/src/ws/serverMessages.ts
 import { z } from "zod";
-
-/**
- * Server → client messages (runtime schema + inferred types)
- */
+import { PresenceSchema } from "../schemas";
+import { RoomEventSchema, TaskSchema, ChatMessageSchema } from "../domainSchemas";
 
 export const PresenceMsgSchema = z.object({
   kind: z.literal("presence"),
-  users: z.array(
-    z.object({
-      userId: z.string().min(1),
-      displayName: z.string().min(1),
-    })
-  ),
+  users: z.array(PresenceSchema),
 });
 
 export const EventCreatedMsgSchema = z.object({
   kind: z.literal("event:created"),
-  event: z.object({
-    id: z.string().min(1),
-    roomId: z.string().min(1),
-    type: z.enum(["note", "status", "link"]),
-    message: z.string(),
-    createdAt: z.string().min(1),
-    author: z.object({
-      userId: z.string().min(1),
-      displayName: z.string().min(1),
-    }),
-  }),
-});
-
-export const TaskSchema = z.object({
-  id: z.string().min(1),
-  roomId: z.string().min(1),
-  title: z.string().min(1),
-  status: z.enum(["open", "done"]),
-  createdAt: z.string().min(1),
-  updatedAt: z.string().min(1),
-  assignee: z.string().min(1).optional(),
+  event: RoomEventSchema,
 });
 
 export const TaskCreatedMsgSchema = z.object({
@@ -50,17 +22,6 @@ export const TaskUpdatedMsgSchema = z.object({
   task: TaskSchema,
 });
 
-export const ChatMessageSchema = z.object({
-  id: z.string().min(1),
-  roomId: z.string().min(1),
-  message: z.string().min(1),
-  createdAt: z.string().min(1),
-  author: z.object({
-    userId: z.string().min(1),
-    displayName: z.string().min(1),
-  }),
-});
-
 export const ChatMessageMsgSchema = z.object({
   kind: z.literal("chat:message"),
   message: ChatMessageSchema,
@@ -71,7 +32,8 @@ export const ErrorMsgSchema = z.object({
   message: z.string().min(1),
 });
 
-export const WsServerMessageSchema = z.union([
+// Better than union: discriminatedUnion
+export const WsServerMessageSchema = z.discriminatedUnion("kind", [
   PresenceMsgSchema,
   EventCreatedMsgSchema,
   TaskCreatedMsgSchema,
