@@ -6,6 +6,7 @@ import type {
   Room,
   RoomEvent,
   Task,
+  WsServerMessage
 } from "@edgeroom/shared";
 
 import { createRoom, getRoomById } from "./roomsService";
@@ -16,6 +17,21 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+async function broadcastToRoom(env: Bindings, roomId: string, msg: WsServerMessage) {
+  try {
+    const id = env.ROOM_DO.idFromName(roomId);
+    const stub = env.ROOM_DO.get(id);
+
+    await stub.fetch("https://room-do/broadcast", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(msg),
+    });
+  } catch (e) {
+    console.warn("Incident broadcast failed:", e);
+  }
+}
+
 export type IncidentTriggerResult =
   | { created: true; roomId: string; event: RoomEvent }
   | { created: false; roomId: string; event?: RoomEvent };
@@ -24,6 +40,7 @@ export async function triggerIncident(
   env: Bindings,
   input: IncidentTriggerInput
 ): Promise<IncidentTriggerResult> {
+  // Fast path
   const existing = await env.DB.prepare(
     `SELECT room_id as roomId
      FROM incident_rooms
@@ -36,19 +53,57 @@ export async function triggerIncident(
     return { created: false, roomId: existing.roomId };
   }
 
-  const room = await createRoom(env, input.roomName.trim());
-  const event = await createEvent(env, room.id, input.initialEvent);
+  // Prepare IDs upfront so we can transact with pure SQL
+  const roomId = crypto.randomUUID();
+  const eventId = crypto.randomUUID();
+  const createdAt = nowIso();
+
+  const roomName = input.roomName.trim();
+  const ev = input.initialEvent;
 
   try {
-    await env.DB.prepare(
-      `INSERT INTO incident_rooms (incident_key, room_id, created_at)
-       VALUES (?, ?, ?)`
-    )
-      .bind(input.incidentKey, room.id, nowIso())
-      .run();
+    // ✅ Atomic workflow: room + initial event + mapping
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO rooms (id, name, created_at)
+         VALUES (?, ?, ?)`
+      ).bind(roomId, roomName, createdAt),
 
-    return { created: true, roomId: room.id, event };
+      env.DB.prepare(
+        `INSERT INTO events
+          (id, room_id, type, message, created_at, author_user_id, author_display_name)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        eventId,
+        roomId,
+        ev.type,
+        ev.message,
+        createdAt,
+        ev.createdBy.userId,
+        ev.createdBy.displayName
+      ),
+
+      env.DB.prepare(
+        `INSERT INTO incident_rooms (incident_key, room_id, created_at)
+         VALUES (?, ?, ?)`
+      ).bind(input.incidentKey, roomId, createdAt),
+    ]);
+
+    const event: RoomEvent = {
+      id: eventId,
+      roomId,
+      type: ev.type,
+      message: ev.message,
+      createdAt,
+      author: ev.createdBy,
+    };
+
+    // ✅ Realtime (non-critical)
+    await broadcastToRoom(env, roomId, { kind: "event:created", event });
+
+    return { created: true, roomId, event };
   } catch (e) {
+    // Likely race: other request inserted mapping first
     const again = await env.DB.prepare(
       `SELECT room_id as roomId
        FROM incident_rooms
@@ -57,7 +112,11 @@ export async function triggerIncident(
       .bind(input.incidentKey)
       .first<{ roomId: string }>();
 
-    if (again?.roomId) return { created: false, roomId: again.roomId };
+    if (again?.roomId) {
+      return { created: false, roomId: again.roomId };
+    }
+
+    // Something else actually failed (e.g., DB issue)
     throw e;
   }
 }
