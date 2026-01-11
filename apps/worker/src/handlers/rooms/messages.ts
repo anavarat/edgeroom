@@ -7,6 +7,10 @@ import { createMessage, listMessages } from "../../services/messagesService";
 import type { Ctx } from "./helpers";
 import { requireRoom, parseJsonBody } from "./helpers";
 
+/**
+ * GET /api/rooms/:id/messages
+ * List chat messages for a room.
+ */
 export async function listMessagesHandler(c: Ctx) {
   const roomId = c.req.param("id");
 
@@ -19,6 +23,10 @@ export async function listMessagesHandler(c: Ctx) {
   return c.json({ messages });
 }
 
+/**
+ * POST /api/rooms/:id/messages
+ * Create a chat message and broadcast it.
+ */
 export async function createMessageHandler(c: Ctx) {
   const roomId = c.req.param("id");
 

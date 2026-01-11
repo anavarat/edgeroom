@@ -6,6 +6,10 @@ import { listMessages } from "../../services/messagesService";
 import type { Ctx } from "./helpers";
 import { requireRoom } from "./helpers";
 
+/**
+ * GET /api/rooms/:id/state
+ * Fetch room plus recent events, tasks, and messages.
+ */
 export async function getRoomStateHandler(c: Ctx) {
   const roomId = c.req.param("id");
 

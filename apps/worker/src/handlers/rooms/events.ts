@@ -6,6 +6,10 @@ import { createEvent, listEvents } from "../../services/eventsService";
 import type { Ctx } from "./helpers";
 import { requireRoom, parseJsonBody } from "./helpers";
 
+/**
+ * GET /api/rooms/:id/events
+ * List events for a room.
+ */
 export async function listEventsHandler(c: Ctx) {
   const roomId = c.req.param("id");
 
@@ -16,6 +20,10 @@ export async function listEventsHandler(c: Ctx) {
   return c.json({ events });
 }
 
+/**
+ * POST /api/rooms/:id/events
+ * Create a new event and broadcast it.
+ */
 export async function createEventHandler(c: Ctx) {
   const roomId = c.req.param("id");
 

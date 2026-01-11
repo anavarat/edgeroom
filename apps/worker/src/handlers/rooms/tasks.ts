@@ -6,6 +6,10 @@ import { createTask, listTasks, updateTask } from "../../services/tasksService";
 import type { Ctx } from "./helpers";
 import { requireRoom, parseJsonBody } from "./helpers";
 
+/**
+ * GET /api/rooms/:id/tasks
+ * List tasks for a room.
+ */
 export async function listTasksHandler(c: Ctx) {
   const roomId = c.req.param("id");
 
@@ -16,6 +20,10 @@ export async function listTasksHandler(c: Ctx) {
   return c.json({ tasks });
 }
 
+/**
+ * POST /api/rooms/:id/tasks
+ * Create a new task and broadcast it.
+ */
 export async function createTaskHandler(c: Ctx) {
   const roomId = c.req.param("id");
 
@@ -35,6 +43,10 @@ export async function createTaskHandler(c: Ctx) {
   return c.json(task, 201);
 }
 
+/**
+ * PATCH /api/rooms/:id/tasks/:taskId
+ * Update a task and broadcast the change.
+ */
 export async function updateTaskHandler(c: Ctx) {
   const roomId = c.req.param("id");
   const taskId = c.req.param("taskId");

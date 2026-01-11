@@ -2,6 +2,10 @@
 import type { Ctx } from "./helpers";
 import { parseJsonBody } from "./helpers";
 
+/**
+ * POST /api/rooms/:id/broadcast
+ * Dev-only broadcast proxy to the room DO.
+ */
 export async function devBroadcastProxyHandler(c: Ctx) {
   const roomId = c.req.param("id");
   const body = await parseJsonBody(c);
