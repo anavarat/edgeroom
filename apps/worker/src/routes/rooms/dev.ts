@@ -1,7 +1,7 @@
 // edgeroom/apps/worker/src/routes/rooms/dev.ts
 import { Hono } from "hono";
 import type { Bindings } from "../../types";
-import { devBroadcastProxyHandler } from "../../handlers/rooms";
+import { devBroadcastProxyHandler } from "../../handlers/rooms/dev";
 
 type App = { Bindings: Bindings };
 export const devRoutes = new Hono<App>();

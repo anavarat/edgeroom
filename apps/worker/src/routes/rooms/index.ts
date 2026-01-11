@@ -6,7 +6,7 @@ import {
   listRoomsHandler,
   createRoomHandler,
   getRoomHandler,
-} from "../../handlers/rooms";
+} from "../../handlers/rooms/index";
 
 import { stateRoutes } from "./state";
 import { eventsRoutes } from "./events";

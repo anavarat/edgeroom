@@ -1,7 +1,7 @@
 // edgeroom/apps/worker/src/routes/rooms/messages.ts
 import { Hono } from "hono";
 import type { Bindings } from "../../types";
-import { listMessagesHandler, createMessageHandler } from "../../handlers/rooms";
+import { listMessagesHandler, createMessageHandler } from "../../handlers/rooms/messages";
 
 type App = { Bindings: Bindings };
 export const messagesRoutes = new Hono<App>();
