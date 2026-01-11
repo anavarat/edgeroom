@@ -8,6 +8,7 @@ import type { Presence, WsServerMessage } from "@edgeroom/shared";
 
 import type { Bindings } from "./types";
 import { roomsRoutes } from "./routes/rooms";
+import { incidentsRoutes } from "./routes/incidents";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -45,21 +46,31 @@ export class RoomDurableObject extends DurableObject<Bindings> {
         const raw = typeof evt.data === "string" ? evt.data : "";
         const json = JSON.parse(raw);
 
+        const current = this.sockets.get(server);
+        const isPending = !current || current.userId === "pending";
+
+        // ✅ Only allow hello once per socket
+        if (!isPending) {
+          this.send(server, { kind: "error", message: "Already joined" });
+          return; // or just `return;` to silently ignore
+        }
+
         const parsed = WsHelloSchema.safeParse(json);
         if (!parsed.success) {
-          this.send(server, { kind: "error", message: "Invalid hello message" });
+          this.send(server, {
+            kind: "error",
+            message: "Expected {kind:'hello', user:{userId, displayName}} as first message",
+          });
           return;
         }
 
-        const user = parsed.data.user;
-        this.sockets.set(server, user);
-
-        // ✅ Broadcast updated presence to everyone (now includes this user)
+        this.sockets.set(server, parsed.data.user);
         this.broadcastPresence();
       } catch {
-        this.send(server, { kind: "error", message: "Bad message format" });
+        this.send(server, { kind: "error", message: "Bad message format (expected JSON)" });
       }
     });
+
 
     const onClose = () => {
       this.sockets.delete(server);
@@ -128,5 +139,6 @@ app.get("/api/rooms/:id/ws", async (c) => {
 
 // Mount Routers
 app.route("/api/rooms", roomsRoutes);
+app.route("/api/incidents", incidentsRoutes);
 
 export default app;
