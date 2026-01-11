@@ -1,3 +1,4 @@
+// edgeroom/packages/shared/src/types.ts
 import { z } from "zod";
 import {
   PresenceSchema,
