@@ -1,6 +1,7 @@
 // edgeroom/apps/worker/src/index.ts
 
 import { Hono } from "hono";
+import { z } from "zod";
 import { DurableObject } from "cloudflare:workers";
 
 import { WsHelloSchema } from "@edgeroom/shared";
@@ -9,12 +10,15 @@ import type { Presence, WsServerMessage } from "@edgeroom/shared";
 import type { Bindings } from "./types";
 import { roomsRoutes } from "./routes/rooms";
 import { incidentsRoutes } from "./routes/incidents";
+import { errorResponse } from "./utils/http";
+
+
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.onError((err, c) => {
   console.error("Unhandled error:", err);
-  return c.json({ error: "Internal Server Error" }, 500);
+  return errorResponse(c, 500, "INTERNAL_ERROR", "Internal Server Error");
 });
 
 export class RoomDurableObject extends DurableObject<Bindings> {
@@ -31,39 +35,128 @@ export class RoomDurableObject extends DurableObject<Bindings> {
     // A) Non-WS HTTP endpoints (broadcast)
     // ----------------------------
     if (request.headers.get("Upgrade") !== "websocket") {
-      // Internal broadcast endpoint: Worker -> DO -> broadcast to sockets
       if (request.method === "POST" && url.pathname === "/broadcast") {
         const body = await request.json().catch(() => null);
 
-        if (!body || typeof body !== "object") {
-          return new Response("Invalid payload", { status: 400 });
-        }
+        // Define strict schemas for server messages (runtime validation)
+        const PresenceMsgSchema = z.object({
+          kind: z.literal("presence"),
+          users: z.array(
+            z.object({
+              userId: z.string().min(1),
+              displayName: z.string().min(1),
+            })
+          ),
+        });
 
-        // Minimal shape check
-        const kind = (body as any).kind;
-        if (typeof kind !== "string") {
-          return new Response("Missing kind", { status: 400 });
-        }
+        const EventCreatedMsgSchema = z.object({
+          kind: z.literal("event:created"),
+          event: z.object({
+            id: z.string().min(1),
+            roomId: z.string().min(1),
+            type: z.enum(["note", "status", "link"]),
+            message: z.string(),
+            createdAt: z.string().min(1),
+            author: z.object({
+              userId: z.string().min(1),
+              displayName: z.string().min(1),
+            }),
+          }),
+        });
 
-        // Accept only known server message kinds
-        const allowed = new Set([
-          "presence",
-          "event:created",
-          "task:created",
-          "task:updated",
-          "error",
+        const TaskSchema = z.object({
+          id: z.string().min(1),
+          roomId: z.string().min(1),
+          title: z.string().min(1),
+          status: z.enum(["open", "done"]),
+          createdAt: z.string().min(1),
+          updatedAt: z.string().min(1),
+          assignee: z.string().min(1).optional(),
+        });
+
+        const TaskCreatedMsgSchema = z.object({
+          kind: z.literal("task:created"),
+          task: TaskSchema,
+        });
+
+        const TaskUpdatedMsgSchema = z.object({
+          kind: z.literal("task:updated"),
+          task: TaskSchema,
+        });
+
+        // ✅ NEW: chat:message payload shape
+        const ChatMessageSchema = z.object({
+          id: z.string().min(1),
+          roomId: z.string().min(1),
+          message: z.string().min(1),
+          createdAt: z.string().min(1),
+          author: z.object({
+            userId: z.string().min(1),
+            displayName: z.string().min(1),
+          }),
+        });
+
+        // ✅ NEW: server message wrapper for chat
+        const ChatMessageMsgSchema = z.object({
+          kind: z.literal("chat:message"),
+          message: ChatMessageSchema,
+        });
+
+        const ErrorMsgSchema = z.object({
+          kind: z.literal("error"),
+          message: z.string().min(1),
+        });
+
+        const WsServerMessageSchema = z.union([
+          PresenceMsgSchema,
+          EventCreatedMsgSchema,
+          TaskCreatedMsgSchema,
+          TaskUpdatedMsgSchema,
+          ChatMessageMsgSchema, // ✅ include it here
+          ErrorMsgSchema,
         ]);
-        if (!allowed.has(kind)) {
-          return new Response("Unsupported kind", { status: 400 });
+
+        const parsed = WsServerMessageSchema.safeParse(body);
+        if (!parsed.success) {
+          return new Response(
+            JSON.stringify({
+              error: {
+                code: "VALIDATION_ERROR",
+                message: "Invalid broadcast message",
+                details: parsed.error.issues.map((i) => ({
+                  path: i.path.join("."),
+                  message: i.message,
+                })),
+              },
+            }),
+            {
+              status: 400,
+              headers: { "content-type": "application/json; charset=utf-8" },
+            }
+          );
         }
 
-        // Broadcast as-is (trusted internal caller)
-        this.broadcast(body as WsServerMessage);
+        // Broadcast only validated payload
+        this.broadcast(parsed.data as WsServerMessage);
         return new Response(null, { status: 204 });
       }
 
-      return new Response("Not found", { status: 404 });
+      // consistent error shape for non-existent DO routes
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "NOT_FOUND",
+            message: "Not found",
+          },
+        }),
+        {
+          status: 404,
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }
+      );
     }
+
+
 
     // ----------------------------
     // B) WebSocket upgrade path

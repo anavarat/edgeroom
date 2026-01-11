@@ -2,18 +2,22 @@
 
 import { Hono } from "hono";
 
-import type { Bindings } from "../types";
 import {
   CreateRoomSchema,
   CreateEventSchema,
   CreateTaskSchema,
   UpdateTaskSchema,
+  CreateChatMessageSchema,
 } from "@edgeroom/shared";
 import type { WsServerMessage } from "@edgeroom/shared";
 
+import type { Bindings } from "../types";
+import { errorResponse, zodIssues } from "../utils/http";
 import { createRoom, getRoomById, listRooms } from "../services/roomsService";
 import { createEvent, listEvents } from "../services/eventsService";
 import { createTask, listTasks, updateTask } from "../services/tasksService";
+import { createMessage, listMessages } from "../services/messagesService";
+
 
 type App = { Bindings: Bindings };
 
@@ -46,15 +50,12 @@ roomsRoutes.post("/", async (c) => {
   const parsed = CreateRoomSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json(
-      {
-        error: "Validation error",
-        issues: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      400
+    return errorResponse(
+      c,
+      400,
+      "VALIDATION_ERROR",
+      "Validation failed",
+      zodIssues(parsed.error)
     );
   }
 
@@ -65,8 +66,68 @@ roomsRoutes.post("/", async (c) => {
 roomsRoutes.get("/:id", async (c) => {
   const roomId = c.req.param("id");
   const room = await getRoomById(c.env, roomId);
-  if (!room) return c.json({ error: "Room not found" }, 404);
+  if (!room) return errorResponse(c, 404, "NOT_FOUND", "Room not found");
   return c.json(room);
+});
+
+// ---- Room State (single-shot hydrate) ----
+roomsRoutes.get("/:id/state", async (c) => {
+  const roomId = c.req.param("id");
+
+  const room = await getRoomById(c.env, roomId);
+  if (!room) return errorResponse(c, 404, "NOT_FOUND", "Room not found");
+
+  // Optional query params
+  const eventsLimitRaw = c.req.query("eventsLimit");
+  const tasksLimitRaw = c.req.query("tasksLimit");
+
+  const eventsLimit = eventsLimitRaw ? Number(eventsLimitRaw) : 200;
+  const tasksLimit = tasksLimitRaw ? Number(tasksLimitRaw) : 200;
+
+  const safeEventsLimit = Number.isFinite(eventsLimit)
+    ? Math.min(Math.max(eventsLimit, 1), 500)
+    : 200;
+
+  const safeTasksLimit = Number.isFinite(tasksLimit)
+    ? Math.min(Math.max(tasksLimit, 1), 500)
+    : 200;
+
+  const messagesLimitRaw = c.req.query("messagesLimit");
+  const messagesLimit = messagesLimitRaw ? Number(messagesLimitRaw) : 200;
+
+  const safeMessagesLimit = Number.isFinite(messagesLimit)
+    ? Math.min(Math.max(messagesLimit, 1), 500)
+    : 200;
+
+  const [events, tasks, messages] = await Promise.all([
+    listEvents(c.env, roomId, safeEventsLimit),
+    listTasks(c.env, roomId, safeTasksLimit),
+    listMessages(c.env, roomId, safeMessagesLimit),
+  ]);
+
+  return c.json({ room, events, tasks, messages });
+
+});
+
+// DEV-only: forward raw payload to DO /broadcast for curl testing
+roomsRoutes.post("/:id/broadcast", async (c) => {
+  const roomId = c.req.param("id");
+  const body = await c.req.json().catch(() => null);
+
+  const id = c.env.ROOM_DO.idFromName(roomId);
+  const stub = c.env.ROOM_DO.get(id);
+
+  const res = await stub.fetch("https://room-do/broadcast", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const text = await res.text();
+  return new Response(text || null, {
+    status: res.status,
+    headers: { "content-type": res.headers.get("content-type") ?? "text/plain" },
+  });
 });
 
 // ---- Events ----
@@ -74,7 +135,7 @@ roomsRoutes.get("/:id", async (c) => {
 roomsRoutes.get("/:id/events", async (c) => {
   const roomId = c.req.param("id");
   const room = await getRoomById(c.env, roomId);
-  if (!room) return c.json({ error: "Room not found" }, 404);
+  if (!room) return errorResponse(c, 404, "NOT_FOUND", "Room not found");
 
   const events = await listEvents(c.env, roomId);
   return c.json({ events });
@@ -83,27 +144,23 @@ roomsRoutes.get("/:id/events", async (c) => {
 roomsRoutes.post("/:id/events", async (c) => {
   const roomId = c.req.param("id");
   const room = await getRoomById(c.env, roomId);
-  if (!room) return c.json({ error: "Room not found" }, 404);
+  if (!room) return errorResponse(c, 404, "NOT_FOUND", "Room not found");
 
   const body = await c.req.json().catch(() => null);
   const parsed = CreateEventSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json(
-      {
-        error: "Validation error",
-        issues: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      400
+    return errorResponse(
+      c,
+      400,
+      "VALIDATION_ERROR",
+      "Validation failed",
+      zodIssues(parsed.error)
     );
   }
 
   const event = await createEvent(c.env, roomId, parsed.data);
 
-  // ✅ broadcast
   await broadcastToRoom(c.env, roomId, { kind: "event:created", event });
 
   return c.json(event, 201);
@@ -114,7 +171,7 @@ roomsRoutes.post("/:id/events", async (c) => {
 roomsRoutes.get("/:id/tasks", async (c) => {
   const roomId = c.req.param("id");
   const room = await getRoomById(c.env, roomId);
-  if (!room) return c.json({ error: "Room not found" }, 404);
+  if (!room) return errorResponse(c, 404, "NOT_FOUND", "Room not found");
 
   const tasks = await listTasks(c.env, roomId);
   return c.json({ tasks });
@@ -123,27 +180,23 @@ roomsRoutes.get("/:id/tasks", async (c) => {
 roomsRoutes.post("/:id/tasks", async (c) => {
   const roomId = c.req.param("id");
   const room = await getRoomById(c.env, roomId);
-  if (!room) return c.json({ error: "Room not found" }, 404);
+  if (!room) return errorResponse(c, 404, "NOT_FOUND", "Room not found");
 
   const body = await c.req.json().catch(() => null);
   const parsed = CreateTaskSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json(
-      {
-        error: "Validation error",
-        issues: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      400
+    return errorResponse(
+      c,
+      400,
+      "VALIDATION_ERROR",
+      "Validation failed",
+      zodIssues(parsed.error)
     );
   }
 
   const task = await createTask(c.env, roomId, parsed.data);
 
-  // ✅ broadcast
   await broadcastToRoom(c.env, roomId, { kind: "task:created", task });
 
   return c.json(task, 201);
@@ -154,29 +207,67 @@ roomsRoutes.patch("/:id/tasks/:taskId", async (c) => {
   const taskId = c.req.param("taskId");
 
   const room = await getRoomById(c.env, roomId);
-  if (!room) return c.json({ error: "Room not found" }, 404);
+  if (!room) return errorResponse(c, 404, "NOT_FOUND", "Room not found");
 
   const body = await c.req.json().catch(() => null);
   const parsed = UpdateTaskSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json(
-      {
-        error: "Validation error",
-        issues: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      400
+    return errorResponse(
+      c,
+      400,
+      "VALIDATION_ERROR",
+      "Validation failed",
+      zodIssues(parsed.error)
     );
   }
 
   const updated = await updateTask(c.env, roomId, taskId, parsed.data);
-  if (!updated) return c.json({ error: "Task not found" }, 404);
+  if (!updated) return errorResponse(c, 404, "NOT_FOUND", "Task not found");
 
-  // ✅ broadcast
   await broadcastToRoom(c.env, roomId, { kind: "task:updated", task: updated });
 
   return c.json(updated);
 });
+
+// ---- Messages (chat) ----
+
+roomsRoutes.get("/:id/messages", async (c) => {
+  const roomId = c.req.param("id");
+  const room = await getRoomById(c.env, roomId);
+  if (!room) return errorResponse(c, 404, "NOT_FOUND", "Room not found");
+
+  const limitRaw = c.req.query("limit");
+  const limit = limitRaw ? Number(limitRaw) : 200;
+  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 500) : 200;
+
+  const messages = await listMessages(c.env, roomId, safeLimit);
+  return c.json({ messages });
+});
+
+roomsRoutes.post("/:id/messages", async (c) => {
+  const roomId = c.req.param("id");
+  const room = await getRoomById(c.env, roomId);
+  if (!room) return errorResponse(c, 404, "NOT_FOUND", "Room not found");
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = CreateChatMessageSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return errorResponse(
+      c,
+      400,
+      "VALIDATION_ERROR",
+      "Validation failed",
+      zodIssues(parsed.error)
+    );
+  }
+
+  const msg = await createMessage(c.env, roomId, parsed.data);
+
+  // ✅ broadcast to WS listeners in room
+  await broadcastToRoom(c.env, roomId, { kind: "chat:message", message: msg });
+
+  return c.json(msg, 201);
+});
+

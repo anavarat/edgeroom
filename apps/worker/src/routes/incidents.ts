@@ -4,8 +4,14 @@ import { Hono } from "hono";
 import { IncidentTriggerSchema, IncidentCreateSchema } from "@edgeroom/shared";
 
 import type { Bindings } from "../types";
-import { triggerIncident, listIncidents, getIncidentByKey } from "../services/incidentsService";
+import {
+  triggerIncident,
+  listIncidents,
+  getIncidentByKey,
+} from "../services/incidentsService";
 import { getRoomById } from "../services/roomsService";
+
+import { errorResponse, zodIssues } from "../utils/http";
 
 type App = { Bindings: Bindings };
 
@@ -34,7 +40,7 @@ incidentsRoutes.get("/:incidentKey", async (c) => {
   const incidentKey = c.req.param("incidentKey");
 
   const detail = await getIncidentByKey(c.env, incidentKey);
-  if (!detail) return c.json({ error: "Incident not found" }, 404);
+  if (!detail) return errorResponse(c, 404, "NOT_FOUND", "Incident not found");
 
   return c.json(detail);
 });
@@ -48,22 +54,27 @@ incidentsRoutes.post("/trigger", async (c) => {
   const parsed = IncidentTriggerSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json(
-      {
-        error: "Validation error",
-        issues: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      400
+    return errorResponse(
+      c,
+      400,
+      "VALIDATION_ERROR",
+      "Validation failed",
+      zodIssues(parsed.error)
     );
   }
 
   const result = await triggerIncident(c.env, parsed.data);
 
   const room = await getRoomById(c.env, result.roomId);
-  if (!room) return c.json({ error: "Room not found for incident" }, 500);
+  if (!room) {
+    // This is an internal consistency problem: incident row points to missing room.
+    return errorResponse(
+      c,
+      500,
+      "INTERNAL_ERROR",
+      "Room not found for incident"
+    );
+  }
 
   if (result.created) {
     return c.json(
@@ -96,15 +107,12 @@ incidentsRoutes.post("/create", async (c) => {
   const parsed = IncidentCreateSchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json(
-      {
-        error: "Validation error",
-        issues: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      400
+    return errorResponse(
+      c,
+      400,
+      "VALIDATION_ERROR",
+      "Validation failed",
+      zodIssues(parsed.error)
     );
   }
 
@@ -125,7 +133,14 @@ incidentsRoutes.post("/create", async (c) => {
   const result = await triggerIncident(c.env, triggerInput);
 
   const room = await getRoomById(c.env, result.roomId);
-  if (!room) return c.json({ error: "Room not found for incident" }, 500);
+  if (!room) {
+    return errorResponse(
+      c,
+      500,
+      "INTERNAL_ERROR",
+      "Room not found for incident"
+    );
+  }
 
   return c.json(
     {
