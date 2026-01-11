@@ -25,10 +25,49 @@ export class RoomDurableObject extends DurableObject<Bindings> {
   }
 
   async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+
+    // ----------------------------
+    // A) Non-WS HTTP endpoints (broadcast)
+    // ----------------------------
     if (request.headers.get("Upgrade") !== "websocket") {
-      return new Response("Expected websocket", { status: 426 });
+      // Internal broadcast endpoint: Worker -> DO -> broadcast to sockets
+      if (request.method === "POST" && url.pathname === "/broadcast") {
+        const body = await request.json().catch(() => null);
+
+        if (!body || typeof body !== "object") {
+          return new Response("Invalid payload", { status: 400 });
+        }
+
+        // Minimal shape check
+        const kind = (body as any).kind;
+        if (typeof kind !== "string") {
+          return new Response("Missing kind", { status: 400 });
+        }
+
+        // Accept only known server message kinds
+        const allowed = new Set([
+          "presence",
+          "event:created",
+          "task:created",
+          "task:updated",
+          "error",
+        ]);
+        if (!allowed.has(kind)) {
+          return new Response("Unsupported kind", { status: 400 });
+        }
+
+        // Broadcast as-is (trusted internal caller)
+        this.broadcast(body as WsServerMessage);
+        return new Response(null, { status: 204 });
+      }
+
+      return new Response("Not found", { status: 404 });
     }
 
+    // ----------------------------
+    // B) WebSocket upgrade path
+    // ----------------------------
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
@@ -38,7 +77,7 @@ export class RoomDurableObject extends DurableObject<Bindings> {
     // Track socket before hello arrives
     this.sockets.set(server, { userId: "pending", displayName: "Pending" });
 
-    // ✅ Immediately send current presence snapshot to the newly connected client
+    // Immediately send presence snapshot to new client
     this.send(server, { kind: "presence", users: this.currentUsers() });
 
     server.addEventListener("message", (evt) => {
@@ -49,10 +88,10 @@ export class RoomDurableObject extends DurableObject<Bindings> {
         const current = this.sockets.get(server);
         const isPending = !current || current.userId === "pending";
 
-        // ✅ Only allow hello once per socket
+        // Only allow hello once per socket
         if (!isPending) {
           this.send(server, { kind: "error", message: "Already joined" });
-          return; // or just `return;` to silently ignore
+          return;
         }
 
         const parsed = WsHelloSchema.safeParse(json);
@@ -70,7 +109,6 @@ export class RoomDurableObject extends DurableObject<Bindings> {
         this.send(server, { kind: "error", message: "Bad message format (expected JSON)" });
       }
     });
-
 
     const onClose = () => {
       this.sockets.delete(server);
@@ -99,17 +137,11 @@ export class RoomDurableObject extends DurableObject<Bindings> {
   }
 
   private currentUsers(): Presence[] {
-    // Deduplicate by userId (so multiple tabs/sockets for same user show once)
     const byUserId = new Map<string, Presence>();
 
     for (const p of this.sockets.values()) {
       if (p.userId === "pending") continue;
-
-      // First write wins (stable). You can switch to "last write wins" if you prefer.
-      // remove the block below for last write wins
-      if (!byUserId.has(p.userId)) {
-        byUserId.set(p.userId, p);
-      }
+      if (!byUserId.has(p.userId)) byUserId.set(p.userId, p);
     }
 
     return Array.from(byUserId.values());
@@ -119,7 +151,6 @@ export class RoomDurableObject extends DurableObject<Bindings> {
     this.broadcast({ kind: "presence", users: this.currentUsers() });
   }
 }
-
 
 // HealthCheck Endpoints
 app.get("/api/health", (c) => c.json({ ok: true }));

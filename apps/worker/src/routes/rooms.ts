@@ -9,6 +9,8 @@ import {
   CreateTaskSchema,
   UpdateTaskSchema,
 } from "@edgeroom/shared";
+import type { WsServerMessage } from "@edgeroom/shared";
+
 import { createRoom, getRoomById, listRooms } from "../services/roomsService";
 import { createEvent, listEvents } from "../services/eventsService";
 import { createTask, listTasks, updateTask } from "../services/tasksService";
@@ -16,6 +18,22 @@ import { createTask, listTasks, updateTask } from "../services/tasksService";
 type App = { Bindings: Bindings };
 
 export const roomsRoutes = new Hono<App>();
+
+async function broadcastToRoom(env: Bindings, roomId: string, msg: WsServerMessage) {
+  try {
+    const id = env.ROOM_DO.idFromName(roomId);
+    const stub = env.ROOM_DO.get(id);
+
+    await stub.fetch("https://room-do/broadcast", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(msg),
+    });
+  } catch (e) {
+    // Don’t fail the API call if WS broadcast fails — DB write is the source of truth.
+    console.warn("Broadcast failed:", e);
+  }
+}
 
 // ---- Rooms ----
 roomsRoutes.get("/", async (c) => {
@@ -84,6 +102,10 @@ roomsRoutes.post("/:id/events", async (c) => {
   }
 
   const event = await createEvent(c.env, roomId, parsed.data);
+
+  // ✅ broadcast
+  await broadcastToRoom(c.env, roomId, { kind: "event:created", event });
+
   return c.json(event, 201);
 });
 
@@ -120,6 +142,10 @@ roomsRoutes.post("/:id/tasks", async (c) => {
   }
 
   const task = await createTask(c.env, roomId, parsed.data);
+
+  // ✅ broadcast
+  await broadcastToRoom(c.env, roomId, { kind: "task:created", task });
+
   return c.json(task, 201);
 });
 
@@ -148,6 +174,9 @@ roomsRoutes.patch("/:id/tasks/:taskId", async (c) => {
 
   const updated = await updateTask(c.env, roomId, taskId, parsed.data);
   if (!updated) return c.json({ error: "Task not found" }, 404);
+
+  // ✅ broadcast
+  await broadcastToRoom(c.env, roomId, { kind: "task:updated", task: updated });
 
   return c.json(updated);
 });
