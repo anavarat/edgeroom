@@ -11,8 +11,9 @@ import RoomPage from "./pages/RoomPage";
 import "./App.css";
 
 function App() {
-  const { identity } = useIdentity();
-  const identityPromptOpen = !identity || identity.displayName === "Guest";
+  const { identity, loaded } = useIdentity();
+  const identityPromptOpen =
+    loaded && (!identity || identity.displayName === "Guest");
 
   return (
     <>

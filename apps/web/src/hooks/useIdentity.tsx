@@ -5,6 +5,7 @@ export type UserIdentity = { userId: string; displayName: string };
 type IdentityContextValue = {
   identity: UserIdentity | null;
   setIdentity: (identity: UserIdentity | null) => void;
+  loaded: boolean;
 };
 
 const IdentityContext = createContext<IdentityContextValue | undefined>(undefined);
@@ -28,9 +29,11 @@ function persistIdentity(identity: UserIdentity | null) {
 
 export function IdentityProvider({ children }: { children: React.ReactNode }) {
   const [identity, setIdentityState] = useState<UserIdentity | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setIdentityState(loadIdentity());
+    setLoaded(true);
   }, []);
 
   const setIdentity = (next: UserIdentity | null) => {
@@ -38,7 +41,10 @@ export function IdentityProvider({ children }: { children: React.ReactNode }) {
     persistIdentity(next);
   };
 
-  const value = useMemo(() => ({ identity, setIdentity }), [identity]);
+  const value = useMemo(
+    () => ({ identity, setIdentity, loaded }),
+    [identity, loaded]
+  );
 
   return <IdentityContext.Provider value={value}>{children}</IdentityContext.Provider>;
 }
