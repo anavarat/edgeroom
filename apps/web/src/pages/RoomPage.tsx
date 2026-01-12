@@ -7,6 +7,13 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
@@ -18,7 +25,9 @@ import { useRoomWebSocket } from "../hooks/useRoomWebSocket";
 import { initialRoomState, roomReducer } from "../state/roomReducer";
 import { useIdentity } from "../hooks/useIdentity";
 import Grid from "@mui/material/Grid";
-import { useCreateRoomMessage } from "../hooks/useRoomMessages";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import type { ChatMessage } from "@edgeroom/shared";
+import { useCreateRoomEvent, useCreateRoomMessage, useCreateRoomTask } from "../hooks/useRoomMessages";
 
 export default function RoomPage() {
   const { roomId } = useParams();
@@ -27,16 +36,22 @@ export default function RoomPage() {
   const { identity } = useIdentity();
   const user = identity;
   const createMessage = useCreateRoomMessage(roomId);
+  const createEvent = useCreateRoomEvent(roomId);
+  const createTask = useCreateRoomTask(roomId);
   const [messageText, setMessageText] = useState("");
-  const topEvents = useMemo(
-    () => state.events.slice(-2).reverse(),
-    [state.events]
-  );
-  const topTasks = useMemo(
-    () => state.tasks.slice(-2).reverse(),
-    [state.tasks]
-  );
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [selectedMessage, setSelectedMessage] = useState<ChatMessage | null>(null);
+  const [convertMode, setConvertMode] = useState<"event" | "task" | null>(null);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskAssignee, setTaskAssignee] = useState("");
+  const allEvents = useMemo(() => state.events.slice().reverse(), [state.events]);
+  const allTasks = useMemo(() => state.tasks.slice().reverse(), [state.tasks]);
   const recentMessages = useMemo(() => state.messages.slice(-20), [state.messages]);
+
+  const formatDate = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  };
 
   useEffect(() => {
     if (!data) return;
@@ -61,6 +76,51 @@ export default function RoomPage() {
       </Alert>
     );
   }
+
+  const handleOpenMenu = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    message: ChatMessage
+  ) => {
+    setMenuAnchor(event.currentTarget);
+    setSelectedMessage(message);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuAnchor(null);
+  };
+
+  const openConvertDialog = (mode: "event" | "task") => {
+    if (!selectedMessage) return;
+    setConvertMode(mode);
+    if (mode === "task") {
+      setTaskTitle(selectedMessage.message);
+      setTaskAssignee("");
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setConvertMode(null);
+  };
+
+  const handleConvertToEvent = async () => {
+    if (!identity || !selectedMessage) return;
+    await createEvent.mutateAsync({
+      type: "note",
+      message: selectedMessage.message,
+      createdBy: identity,
+    });
+    handleCloseDialog();
+  };
+
+  const handleConvertToTask = async () => {
+    if (!identity || !selectedMessage || !taskTitle.trim()) return;
+    await createTask.mutateAsync({
+      title: taskTitle.trim(),
+      assignee: taskAssignee.trim() || undefined,
+      createdBy: identity,
+    });
+    handleCloseDialog();
+  };
 
   return (
     <Stack spacing={3}>
@@ -96,20 +156,23 @@ export default function RoomPage() {
               <Accordion defaultExpanded>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography variant="subtitle1">
-                    Events (top 2)
+                    Events ({state.events.length})
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
                   <Stack spacing={0.5}>
-                    {topEvents.length === 0 && (
+                    {allEvents.length === 0 && (
                       <Typography color="text.secondary" variant="body2">
                         No events yet.
                       </Typography>
                     )}
-                    {topEvents.map((event) => (
-                      <Typography key={event.id} variant="body2">
-                        {event.message}
-                      </Typography>
+                    {allEvents.map((event) => (
+                      <Stack key={event.id} spacing={0.25}>
+                        <Typography variant="body2">{event.message}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDate(event.createdAt)}
+                        </Typography>
+                      </Stack>
                     ))}
                   </Stack>
                 </AccordionDetails>
@@ -118,20 +181,24 @@ export default function RoomPage() {
               <Accordion defaultExpanded>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography variant="subtitle1">
-                    Tasks (top 2)
+                    Tasks ({state.tasks.length})
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
                   <Stack spacing={0.5}>
-                    {topTasks.length === 0 && (
+                    {allTasks.length === 0 && (
                       <Typography color="text.secondary" variant="body2">
                         No tasks yet.
                       </Typography>
                     )}
-                    {topTasks.map((task) => (
-                      <Typography key={task.id} variant="body2">
-                        {task.title}
-                      </Typography>
+                    {allTasks.map((task) => (
+                      <Stack key={task.id} spacing={0.25}>
+                        <Typography variant="body2">{task.title}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDate(task.createdAt)}
+                          {task.assignee ? ` • Assigned to: ${task.assignee}` : ""}
+                        </Typography>
+                      </Stack>
                     ))}
                   </Stack>
                 </AccordionDetails>
@@ -150,11 +217,22 @@ export default function RoomPage() {
                 )}
                 {recentMessages.map((message) => (
                   <Stack key={message.id} spacing={0.5}>
-                    <Typography variant="subtitle2">
-                      {message.author.displayName}
-                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="subtitle2">
+                        {message.author.displayName}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={(event) => handleOpenMenu(event, message)}
+                      >
+                        <MoreVertIcon fontSize="inherit" />
+                      </IconButton>
+                    </Stack>
                     <Typography variant="body2" color="text.secondary">
                       {message.message}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDate(message.createdAt)}
                     </Typography>
                   </Stack>
                 ))}
@@ -187,6 +265,83 @@ export default function RoomPage() {
           </Paper>
         </Grid>
       </Grid>
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleCloseMenu}
+      >
+        <MenuItem
+          onClick={() => {
+            handleCloseMenu();
+            openConvertDialog("event");
+          }}
+        >
+          Convert to event
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleCloseMenu();
+            openConvertDialog("task");
+          }}
+        >
+          Convert to task
+        </MenuItem>
+      </Menu>
+      <Dialog open={convertMode === "event"} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Convert to event</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This will create a note event using the chat message.
+          </Typography>
+          <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+            <Typography variant="subtitle2">
+              {selectedMessage?.author.displayName}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {selectedMessage?.message}
+            </Typography>
+          </Paper>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleConvertToEvent}
+            disabled={!identity || createEvent.isPending}
+          >
+            Create event
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={convertMode === "task"} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Convert to task</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Task title"
+              value={taskTitle}
+              onChange={(event) => setTaskTitle(event.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="Assignee (optional)"
+              value={taskAssignee}
+              onChange={(event) => setTaskAssignee(event.target.value)}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleConvertToTask}
+            disabled={!identity || !taskTitle.trim() || createTask.isPending}
+          >
+            Create task
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

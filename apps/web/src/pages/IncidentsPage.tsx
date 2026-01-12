@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import Button from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -10,10 +10,8 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import { useIncidents } from "../hooks/useIncidents";
-import { Link as RouterLink } from "react-router-dom";
 
 export default function IncidentsPage() {
-  const navigate = useNavigate();
   const { data, isLoading, error } = useIncidents();
 
   const incidents = useMemo(() => data?.incidents ?? [], [data?.incidents]);
@@ -27,7 +25,8 @@ export default function IncidentsPage() {
         <Button
           variant="contained"
           size="large"
-          onClick={() => navigate("/incidents/new")}
+          component={RouterLink}
+          to="/incidents/new"
         >
           Create Incident
         </Button>

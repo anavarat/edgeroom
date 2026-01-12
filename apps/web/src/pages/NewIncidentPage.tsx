@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
@@ -10,7 +10,6 @@ import { useCreateIncident } from "../hooks/useIncidents";
 import { useIdentity } from "../hooks/useIdentity";
 
 export default function NewIncidentPage() {
-  const navigate = useNavigate();
   const { identity } = useIdentity();
   const createIncident = useCreateIncident();
   const [title, setTitle] = useState("");
@@ -59,7 +58,7 @@ export default function NewIncidentPage() {
             >
               Create
             </Button>
-            <Button variant="outlined" onClick={() => navigate("/")}>
+            <Button variant="outlined" component={RouterLink} to="/">
               Back to incidents
             </Button>
           </Stack>
@@ -71,7 +70,8 @@ export default function NewIncidentPage() {
               Incident created.{" "}
               <Button
                 size="small"
-                onClick={() => navigate(`/rooms/${createdRoomId}`)}
+                component={RouterLink}
+                to={`/rooms/${createdRoomId}`}
               >
                 View room
               </Button>
