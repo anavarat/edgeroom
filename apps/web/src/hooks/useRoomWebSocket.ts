@@ -13,17 +13,22 @@ export function useRoomWebSocket({ roomId, user, dispatch }: UseRoomWebSocketPar
   const socketRef = useRef<WebSocket | null>(null);
   const wsUrl = useMemo(() => {
     if (!roomId) return null;
-    const base = window.location.origin.replace(/^http/, "ws");
-    return `${base}/api/rooms/${roomId}/ws`;
+    const url = new URL(window.location.href);
+    const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
+    const wsHost =
+      url.port === "5173" ? `${url.hostname}:8787` : url.host;
+    return `${wsProtocol}//${wsHost}/api/rooms/${roomId}/ws`;
   }, [roomId]);
 
   useEffect(() => {
     if (!wsUrl || !user) return;
 
     const socket = new WebSocket(wsUrl);
+    let isActive = true;
     socketRef.current = socket;
 
     const sendHello = () => {
+      if (!isActive) return;
       const hello: WsClientHello = { kind: "hello", user };
       console.info("[ws] send hello", hello);
       socket.send(JSON.stringify(hello));
@@ -71,8 +76,11 @@ export function useRoomWebSocket({ roomId, user, dispatch }: UseRoomWebSocketPar
     });
 
     return () => {
+      isActive = false;
       socket.removeEventListener("open", sendHello);
-      socket.close();
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
       socketRef.current = null;
     };
   }, [wsUrl, user, dispatch]);
