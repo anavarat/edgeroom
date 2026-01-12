@@ -1,38 +1,21 @@
-import { useEffect, useMemo, useReducer } from "react";
+// edgeroom/apps/web/src/pages/RoomPage.tsx
+import { useEffect, useReducer } from "react";
 import { useParams } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import type { Presence } from "@edgeroom/shared";
 import { useRoomStateQuery } from "../hooks/useRoomStateQuery";
 import { useRoomWebSocket } from "../hooks/useRoomWebSocket";
 import { initialRoomState, roomReducer } from "../state/roomReducer";
-
-type UserIdentity = { userId: string; displayName: string };
-
-function loadIdentity(): UserIdentity | null {
-  const userId = localStorage.getItem("edgeroom.userId");
-  const displayName = localStorage.getItem("edgeroom.displayName");
-  if (!userId || !displayName) return null;
-  return { userId, displayName };
-}
-
-function ensureIdentity(): UserIdentity {
-  const existing = loadIdentity();
-  if (existing) return existing;
-  const identity = { userId: crypto.randomUUID(), displayName: "Guest" };
-  localStorage.setItem("edgeroom.userId", identity.userId);
-  localStorage.setItem("edgeroom.displayName", identity.displayName);
-  return identity;
-}
+import { useIdentity } from "../hooks/useIdentity";
 
 export default function RoomPage() {
   const { roomId } = useParams();
   const [state, dispatch] = useReducer(roomReducer, initialRoomState);
   const { data, isLoading, error } = useRoomStateQuery(roomId);
-  const identity = useMemo<UserIdentity>(() => ensureIdentity(), []);
-  const user = useMemo<Presence | null>(() => identity, [identity]);
+  const { identity } = useIdentity();
+  const user = identity;
 
   useEffect(() => {
     if (!data) return;

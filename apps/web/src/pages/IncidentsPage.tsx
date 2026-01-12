@@ -65,7 +65,7 @@ export default function IncidentsPage() {
                 <TableCell>{incident.room.name}</TableCell>
                 <TableCell align="right">
                   <Button onClick={() => navigate(`/rooms/${incident.room.id}`)}>
-                    Join
+                    View
                   </Button>
                 </TableCell>
               </TableRow>
