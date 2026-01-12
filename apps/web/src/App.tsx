@@ -1,6 +1,5 @@
 // edgeroom/apps/web/src/App.tsx
 import { Route, Routes } from "react-router-dom";
-import { Toolbar } from "@mui/material";
 import { AppShell } from "./components/AppShell";
 import IdentityPrompt from "./components/IdentityPrompt";
 import { useIdentity } from "./hooks/useIdentity";
