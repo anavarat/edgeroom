@@ -1,5 +1,6 @@
 import type {
   ChatMessage,
+  CreateChatMessageInput,
   CreateEventInput,
   CreateTaskInput,
   Room,
@@ -61,6 +62,16 @@ export async function updateRoomTask(
 ) {
   return requestJson<Task>(`/api/rooms/${roomId}/tasks/${taskId}`, {
     method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function createRoomMessage(
+  roomId: string,
+  input: CreateChatMessageInput
+) {
+  return requestJson<ChatMessage>(`/api/rooms/${roomId}/messages`, {
+    method: "POST",
     body: JSON.stringify(input),
   });
 }

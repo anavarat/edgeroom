@@ -1,5 +1,5 @@
 // edgeroom/apps/web/src/pages/RoomPage.tsx
-import { useEffect, useMemo, useReducer } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { useParams } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import Accordion from "@mui/material/Accordion";
@@ -12,11 +12,13 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Button from "@mui/material/Button";
 import { useRoomStateQuery } from "../hooks/useRoomStateQuery";
 import { useRoomWebSocket } from "../hooks/useRoomWebSocket";
 import { initialRoomState, roomReducer } from "../state/roomReducer";
 import { useIdentity } from "../hooks/useIdentity";
 import Grid from "@mui/material/Grid";
+import { useCreateRoomMessage } from "../hooks/useRoomMessages";
 
 export default function RoomPage() {
   const { roomId } = useParams();
@@ -24,6 +26,8 @@ export default function RoomPage() {
   const { data, isLoading, error } = useRoomStateQuery(roomId);
   const { identity } = useIdentity();
   const user = identity;
+  const createMessage = useCreateRoomMessage(roomId);
+  const [messageText, setMessageText] = useState("");
   const topEvents = useMemo(
     () => state.events.slice(-2).reverse(),
     [state.events]
@@ -32,6 +36,7 @@ export default function RoomPage() {
     () => state.tasks.slice(-2).reverse(),
     [state.tasks]
   );
+  const recentMessages = useMemo(() => state.messages.slice(-20), [state.messages]);
 
   useEffect(() => {
     if (!data) return;
@@ -134,31 +139,50 @@ export default function RoomPage() {
             </Stack>
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, md: 8 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper variant="outlined" sx={{ p: 2, minHeight: 420 }}>
             <Stack spacing={2} sx={{ height: "100%" }}>
               <Stack spacing={1} sx={{ flexGrow: 1 }}>
-                {state.events.length === 0 && (
+                {recentMessages.length === 0 && (
                   <Typography color="text.secondary">
-                    No activity yet.
+                    No chat messages yet.
                   </Typography>
                 )}
-                {state.events.map((event) => (
-                  <Stack key={event.id} spacing={0.5}>
+                {recentMessages.map((message) => (
+                  <Stack key={message.id} spacing={0.5}>
                     <Typography variant="subtitle2">
-                      {event.author.displayName}
+                      {message.author.displayName}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {event.message}
+                      {message.message}
                     </Typography>
                   </Stack>
                 ))}
               </Stack>
-              <TextField
-                placeholder="Type here"
-                fullWidth
-                disabled
-              />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <TextField
+                  placeholder="Type a message"
+                  fullWidth
+                  value={messageText}
+                  onChange={(event) => setMessageText(event.target.value)}
+                  disabled={!identity || createMessage.isPending}
+                />
+                <Button
+                  variant="contained"
+                  onClick={async () => {
+                    if (!identity || !messageText.trim()) return;
+                    const next = messageText.trim();
+                    setMessageText("");
+                    await createMessage.mutateAsync({
+                      message: next,
+                      createdBy: identity,
+                    });
+                  }}
+                  disabled={!identity || !messageText.trim() || createMessage.isPending}
+                >
+                  Send
+                </Button>
+              </Stack>
             </Stack>
           </Paper>
         </Grid>

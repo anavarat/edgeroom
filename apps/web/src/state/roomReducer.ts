@@ -20,7 +20,8 @@ export type RoomAction =
   | { type: "PRESENCE_UPDATED"; payload: Presence[] }
   | { type: "EVENT_CREATED"; payload: RoomEvent }
   | { type: "TASK_CREATED"; payload: Task }
-  | { type: "TASK_UPDATED"; payload: Task };
+  | { type: "TASK_UPDATED"; payload: Task }
+  | { type: "CHAT_MESSAGE_CREATED"; payload: ChatMessage };
 
 export const initialRoomState: RoomState = {
   room: null,
@@ -53,6 +54,8 @@ export function roomReducer(state: RoomState, action: RoomAction): RoomState {
           task.id === action.payload.id ? action.payload : task
         ),
       };
+    case "CHAT_MESSAGE_CREATED":
+      return { ...state, messages: [...state.messages, action.payload] };
     default:
       return state;
   }

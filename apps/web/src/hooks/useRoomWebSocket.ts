@@ -23,6 +23,11 @@ export function useRoomWebSocket({ roomId, user, dispatch }: UseRoomWebSocketPar
   useEffect(() => {
     if (!wsUrl || !user) return;
 
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+
     const socket = new WebSocket(wsUrl);
     let isActive = true;
     socketRef.current = socket;
@@ -34,8 +39,7 @@ export function useRoomWebSocket({ roomId, user, dispatch }: UseRoomWebSocketPar
       socket.send(JSON.stringify(hello));
     };
 
-    socket.addEventListener("open", sendHello);
-    socket.addEventListener("message", (event) => {
+    const handleMessage = (event: MessageEvent) => {
       const raw = typeof event.data === "string" ? event.data : "";
       console.info("[ws] recv raw", raw);
       let parsed: WsServerMessage | null = null;
@@ -63,24 +67,28 @@ export function useRoomWebSocket({ roomId, user, dispatch }: UseRoomWebSocketPar
           dispatch({ type: "TASK_UPDATED", payload: parsed.task });
           break;
         case "chat:message":
-          // Messages are not wired yet; keep for later.
+          dispatch({ type: "CHAT_MESSAGE_CREATED", payload: parsed.message });
           break;
         case "error":
           // Optional: surface later via UI.
           break;
       }
-    });
+    };
 
-    socket.addEventListener("close", () => {
+    const handleClose = () => {
       socketRef.current = null;
-    });
+    };
+
+    socket.addEventListener("open", sendHello);
+    socket.addEventListener("message", handleMessage);
+    socket.addEventListener("close", handleClose);
 
     return () => {
       isActive = false;
       socket.removeEventListener("open", sendHello);
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
+      socket.removeEventListener("message", handleMessage);
+      socket.removeEventListener("close", handleClose);
+      if (socket.readyState !== WebSocket.CLOSED) socket.close();
       socketRef.current = null;
     };
   }, [wsUrl, user, dispatch]);
