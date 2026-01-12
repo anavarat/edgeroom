@@ -13,20 +13,14 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 applyErrorHandling(app);
 
-app.use("/api/*", cors({
-  origin: (origin) => {
-    if (!origin) return "";
-    try {
-      const { hostname, protocol } = new URL(origin);
-      if (protocol === "https:" && hostname.endsWith(".edgeroom.pages.dev")) {
-        return origin;
-      }
-    } catch {}
-    return "";
-  },
-  allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
-  allowHeaders: ["Content-Type"],
-}));
+app.use(
+  "/api/*",
+  cors({
+    origin: "*",
+    allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
+    allowHeaders: ["Content-Type"],
+  })
+);
 
 
 // Small, focused routers
