@@ -10,6 +10,7 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import { useIncidents } from "../hooks/useIncidents";
+import { Link as RouterLink } from "react-router-dom";
 
 export default function IncidentsPage() {
   const navigate = useNavigate();
@@ -64,7 +65,7 @@ export default function IncidentsPage() {
                 <TableCell>{incident.incidentCreatedAt}</TableCell>
                 <TableCell>{incident.room.name}</TableCell>
                 <TableCell align="right">
-                  <Button onClick={() => navigate(`/rooms/${incident.room.id}`)}>
+                  <Button component={RouterLink} to={`/rooms/${incident.room.id}`}>
                     View
                   </Button>
                 </TableCell>
