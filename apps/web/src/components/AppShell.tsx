@@ -200,7 +200,6 @@ export function AppShell({ children }: AppShellProps) {
           flexDirection: "column",
         }}
       >
-        {/* Optional max width so it doesn't feel lost on ultrawide */}
         <Box
           sx={{
             maxWidth: isRoomRoute ? "none" : { xs: "100%", lg: 1500 },
