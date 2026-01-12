@@ -25,12 +25,14 @@ export function useRoomWebSocket({ roomId, user, dispatch }: UseRoomWebSocketPar
 
     const sendHello = () => {
       const hello: WsClientHello = { kind: "hello", user };
+      console.info("[ws] send hello", hello);
       socket.send(JSON.stringify(hello));
     };
 
     socket.addEventListener("open", sendHello);
     socket.addEventListener("message", (event) => {
       const raw = typeof event.data === "string" ? event.data : "";
+      console.info("[ws] recv raw", raw);
       let parsed: WsServerMessage | null = null;
       try {
         const json = JSON.parse(raw);
@@ -41,6 +43,7 @@ export function useRoomWebSocket({ roomId, user, dispatch }: UseRoomWebSocketPar
         return;
       }
 
+      console.info("[ws] recv", parsed);
       switch (parsed.kind) {
         case "presence":
           dispatch({ type: "PRESENCE_UPDATED", payload: parsed.users });
