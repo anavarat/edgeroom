@@ -28,7 +28,12 @@ export async function requestJson<T>(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<T> {
-  const response = await fetch(input, {
+  const baseUrl = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
+  const resolvedInput =
+    typeof input === "string" && input.startsWith("/")
+      ? `${baseUrl}${input}`
+      : input;
+  const response = await fetch(resolvedInput, {
     headers: {
       "content-type": "application/json",
       ...(init?.headers ?? {}),
