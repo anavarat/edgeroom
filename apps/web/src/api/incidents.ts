@@ -20,12 +20,24 @@ export type CreateIncidentResponse = {
   event?: RoomEvent;
 };
 
+export type IncidentDetailResponse = {
+  incidentKey: string;
+  incidentCreatedAt: string;
+  room: Room;
+  events: RoomEvent[];
+  tasks: import("@edgeroom/shared").Task[];
+};
+
 export async function listIncidents(params?: { limit?: number; offset?: number }) {
   const qs = new URLSearchParams();
   if (params?.limit) qs.set("limit", String(params.limit));
   if (params?.offset) qs.set("offset", String(params.offset));
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   return requestJson<IncidentListResponse>(`/api/incidents${suffix}`);
+}
+
+export async function getIncidentDetail(incidentKey: string) {
+  return requestJson<IncidentDetailResponse>(`/api/incidents/${incidentKey}`);
 }
 
 export async function createIncident(input: IncidentCreateInput) {

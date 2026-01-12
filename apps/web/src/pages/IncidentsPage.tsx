@@ -10,6 +10,7 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TableContainer from "@mui/material/TableContainer";
+import Typography from "@mui/material/Typography";
 
 import { useIncidents } from "../hooks/useIncidents";
 
@@ -20,6 +21,11 @@ export default function IncidentsPage() {
 
   return (
     <Stack spacing={3}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
+        <Typography variant="h4" sx={{ flexGrow: 1 }} >
+          Incidents Dashboard
+        </Typography>
+      </Stack>
       <Paper variant="outlined" sx={{ overflow: "hidden" }}>
         <TableContainer sx={{ maxHeight: 600, overflow: "auto" }}>
           <Table size="small" stickyHeader aria-label="incidents table">
@@ -63,7 +69,13 @@ export default function IncidentsPage() {
               {incidents.map((incident) => (
                 <TableRow key={incident.incidentKey} hover>
                   <TableCell sx={{ fontFamily: "monospace" }}>
-                    {incident.incidentKey}
+                    <Button
+                      component={RouterLink}
+                      to={`/incidents/${incident.incidentKey}`}
+                      sx={{ textTransform: "none", fontFamily: "monospace" }}
+                    >
+                      {incident.incidentKey}
+                    </Button>
                   </TableCell>
                   <TableCell>
                     {new Date(incident.incidentCreatedAt).toLocaleString()}
