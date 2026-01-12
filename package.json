@@ -1,0 +1,21 @@
+{
+  "name": "edgeroom",
+  "private": true,
+  "description": "EdgeRoom: Realtime Incident Rooms on Cloudflare Workers",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:worker": "npm --workspace apps/worker run dev",
+    "dev": "npm run dev:worker & npm run dev:web",
+    "lint": "echo \"add later\"",
+    "format": "echo \"add later\""
+  },
+  "author": "Kuber Gaur",
+  "license": "ISC",
+  "dependencies": {
+    "zod": "^4.3.5"
+  }
+}
