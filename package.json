@@ -9,7 +9,7 @@
   "scripts": {
     "dev:web": "npm --workspace apps/web run dev",
     "dev:worker": "npm --workspace apps/worker run dev",
-    "dev": "npm run dev:worker & npm run dev:web",
+    "dev": "npm run dev:web",
     "lint": "echo \"add later\"",
     "format": "echo \"add later\""
   },

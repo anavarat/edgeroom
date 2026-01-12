@@ -10,7 +10,7 @@ export default function AppHeader() {
         <Typography
           variant="h6"
           component={RouterLink}
-          to="/incidents"
+          to="/"
           color="inherit"
           sx={{ textDecoration: "none", fontWeight: 600 }}
         >
