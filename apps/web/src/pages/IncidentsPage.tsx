@@ -21,8 +21,8 @@ export default function IncidentsPage() {
   return (
     <Stack spacing={3}>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
-        <Typography variant="h5" sx={{ flexGrow: 1 }}>
-          Incidents
+        <Typography variant="h3" sx={{ flexGrow: 1 }} >
+          Dashboard
         </Typography>
         <Button
           variant="contained"
