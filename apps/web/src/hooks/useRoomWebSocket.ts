@@ -1,0 +1,76 @@
+import { useEffect, useMemo, useRef } from "react";
+import type { Presence, WsClientHello, WsServerMessage } from "@edgeroom/shared";
+import { WsServerMessageSchema } from "@edgeroom/shared";
+import type { RoomAction } from "../state/roomReducer";
+
+type UseRoomWebSocketParams = {
+  roomId: string | undefined;
+  user: Presence | null;
+  dispatch: React.Dispatch<RoomAction>;
+};
+
+export function useRoomWebSocket({ roomId, user, dispatch }: UseRoomWebSocketParams) {
+  const socketRef = useRef<WebSocket | null>(null);
+  const wsUrl = useMemo(() => {
+    if (!roomId) return null;
+    const base = window.location.origin.replace(/^http/, "ws");
+    return `${base}/api/rooms/${roomId}/ws`;
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!wsUrl || !user) return;
+
+    const socket = new WebSocket(wsUrl);
+    socketRef.current = socket;
+
+    const sendHello = () => {
+      const hello: WsClientHello = { kind: "hello", user };
+      socket.send(JSON.stringify(hello));
+    };
+
+    socket.addEventListener("open", sendHello);
+    socket.addEventListener("message", (event) => {
+      const raw = typeof event.data === "string" ? event.data : "";
+      let parsed: WsServerMessage | null = null;
+      try {
+        const json = JSON.parse(raw);
+        const result = WsServerMessageSchema.safeParse(json);
+        if (!result.success) return;
+        parsed = result.data;
+      } catch {
+        return;
+      }
+
+      switch (parsed.kind) {
+        case "presence":
+          dispatch({ type: "PRESENCE_UPDATED", payload: parsed.users });
+          break;
+        case "event:created":
+          dispatch({ type: "EVENT_CREATED", payload: parsed.event });
+          break;
+        case "task:created":
+          dispatch({ type: "TASK_CREATED", payload: parsed.task });
+          break;
+        case "task:updated":
+          dispatch({ type: "TASK_UPDATED", payload: parsed.task });
+          break;
+        case "chat:message":
+          // Messages are not wired yet; keep for later.
+          break;
+        case "error":
+          // Optional: surface later via UI.
+          break;
+      }
+    });
+
+    socket.addEventListener("close", () => {
+      socketRef.current = null;
+    });
+
+    return () => {
+      socket.removeEventListener("open", sendHello);
+      socket.close();
+      socketRef.current = null;
+    };
+  }, [wsUrl, user, dispatch]);
+}
