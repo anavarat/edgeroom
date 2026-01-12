@@ -13,10 +13,13 @@ export function useRoomWebSocket({ roomId, user, dispatch }: UseRoomWebSocketPar
   const socketRef = useRef<WebSocket | null>(null);
   const wsUrl = useMemo(() => {
     if (!roomId) return null;
+    const envOrigin = import.meta.env.VITE_WS_ORIGIN as string | undefined;
+    if (envOrigin) {
+      return `${envOrigin.replace(/\/$/, "")}/api/rooms/${roomId}/ws`;
+    }
     const url = new URL(window.location.href);
     const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const wsHost =
-      url.port === "5173" ? `${url.hostname}:8787` : url.host;
+    const wsHost = url.port === "5173" ? `${url.hostname}:8787` : url.host;
     return `${wsProtocol}//${wsHost}/api/rooms/${roomId}/ws`;
   }, [roomId]);
 

@@ -30,6 +30,27 @@
 			"database_id": "LOCAL"
 		}
 	],
+	"env": {
+    "dev": {
+			"workers_dev": true,
+    	"preview_urls": true,
+			"durable_objects": {
+				"bindings": [
+					{
+						"class_name": "RoomDurableObject",
+						"name": "ROOM_DO"
+					}
+				]
+			},
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "incident-room-db",
+          "database_id": "e0a5fe1e-47c0-4312-af6b-b1491ee20bdd"
+        }
+      ],
+    },
+  },
 	"observability": {
 		"enabled": true
 	}
