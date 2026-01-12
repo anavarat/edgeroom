@@ -1,4 +1,4 @@
-import type { IncidentCreateInput, Room, RoomEvent } from "@edgeroom/shared";
+import type { IncidentCreateInput, IncidentTriggerInput, Room, RoomEvent } from "@edgeroom/shared";
 import { requestJson } from "./client";
 
 export type IncidentListItem = {
@@ -28,6 +28,10 @@ export type IncidentDetailResponse = {
   tasks: import("@edgeroom/shared").Task[];
 };
 
+export type TriggerIncidentResponse =
+  | { created: true; incidentKey: string; room: Room; event?: RoomEvent }
+  | { created: false; incidentKey: string; room: Room };
+
 export async function listIncidents(params?: { limit?: number; offset?: number }) {
   const qs = new URLSearchParams();
   if (params?.limit) qs.set("limit", String(params.limit));
@@ -38,6 +42,13 @@ export async function listIncidents(params?: { limit?: number; offset?: number }
 
 export async function getIncidentDetail(incidentKey: string) {
   return requestJson<IncidentDetailResponse>(`/api/incidents/${incidentKey}`);
+}
+
+export async function triggerIncident(input: IncidentTriggerInput) {
+  return requestJson<TriggerIncidentResponse>("/api/incidents/trigger", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export async function createIncident(input: IncidentCreateInput) {

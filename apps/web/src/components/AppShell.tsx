@@ -11,13 +11,17 @@ import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AddIcon from "@mui/icons-material/Add";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 import { useIdentity } from "../hooks/useIdentity";
+import { useTriggerIncident } from "../hooks/useIncidents";
 
 
 const DRAWER_WIDTH = 240;
@@ -31,10 +35,14 @@ export function AppShell({ children }: AppShellProps) {
   const displayName = identity?.displayName ?? "";
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const triggerIncident = useTriggerIncident();
+  const [demoNotice, setDemoNotice] = React.useState<string | null>(null);
+  const [demoError, setDemoError] = React.useState<string | null>(null);
 
   const navItems = [
     { label: "Dashboard", to: "/", icon: <DashboardIcon /> },
     { label: "Create Incident", to: "/incidents/new", icon: <AddIcon /> },
+    { label: "Generate Demo Incident", to: "/incidents/new", icon: <AutoAwesomeIcon />, action: "demo" as const },
   ];
 
   const drawer = (
@@ -53,10 +61,70 @@ export function AppShell({ children }: AppShellProps) {
           return (
             <ListItemButton
               key={item.to}
-              component={RouterLink}
-              to={item.to}
+              component={item.action ? "button" : RouterLink}
+              to={item.action ? undefined : item.to}
               selected={selected}
               sx={{ borderRadius: 1 }}
+              onClick={async () => {
+                if (item.action !== "demo") return;
+                if (!identity) return;
+                const demoIncidents = [
+                  {
+                    incidentKey: `pd:INC-${Math.floor(Math.random() * 900000 + 100000)}`,
+                    roomName: "Payments latency spike",
+                    initialEvent: {
+                      type: "status" as const,
+                      message: "Payment processor p95 jumped to 4.2s; investigating upstream gateway.",
+                    },
+                  },
+                  {
+                    incidentKey: `pd:INC-${Math.floor(Math.random() * 900000 + 100000)}`,
+                    roomName: "Checkout errors 500",
+                    initialEvent: {
+                      type: "status" as const,
+                      message: "Error rate 5xx at 18% on /checkout. Rolling back last deploy.",
+                    },
+                  },
+                  {
+                    incidentKey: `pd:INC-${Math.floor(Math.random() * 900000 + 100000)}`,
+                    roomName: "DB connection pool exhausted",
+                    initialEvent: {
+                      type: "note" as const,
+                      message: "Primary DB pool saturation. Throttling background jobs.",
+                    },
+                  },
+                  {
+                    incidentKey: `pd:INC-${Math.floor(Math.random() * 900000 + 100000)}`,
+                    roomName: "Login failures",
+                    initialEvent: {
+                      type: "status" as const,
+                      message: "Auth provider elevated timeouts. Failures at 12%.",
+                    },
+                  },
+                  {
+                    incidentKey: `pd:INC-${Math.floor(Math.random() * 900000 + 100000)}`,
+                    roomName: "CDN cache miss surge",
+                    initialEvent: {
+                      type: "note" as const,
+                      message: "Cache hit ratio dropped to 42%. Suspect config push.",
+                    },
+                  },
+                ];
+                const pick = demoIncidents[Math.floor(Math.random() * demoIncidents.length)];
+                try {
+                  await triggerIncident.mutateAsync({
+                  incidentKey: pick.incidentKey,
+                  roomName: pick.roomName,
+                  initialEvent: {
+                    ...pick.initialEvent,
+                    createdBy: identity,
+                  },
+                  });
+                  setDemoNotice(`Demo incident created: ${pick.roomName}`);
+                } catch (err) {
+                  setDemoError("Failed to create demo incident.");
+                }
+              }}
             >
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={item.label} />
@@ -153,6 +221,26 @@ export function AppShell({ children }: AppShellProps) {
           {children}
         </Box>
       </Box>
+      <Snackbar
+        open={Boolean(demoNotice)}
+        autoHideDuration={4000}
+        onClose={() => setDemoNotice(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert severity="success" onClose={() => setDemoNotice(null)}>
+          {demoNotice}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={Boolean(demoError)}
+        autoHideDuration={4000}
+        onClose={() => setDemoError(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert severity="error" onClose={() => setDemoError(null)}>
+          {demoError}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

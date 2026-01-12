@@ -64,7 +64,7 @@ export default function IncidentDetailPage() {
     <Stack spacing={3} sx={{ height: "100%", minHeight: 0 }}>
       <Stack spacing={0.5}>
         <Typography variant="overline" color="text.secondary">
-          Incident detail
+          EdgeRoom • Incident detail
         </Typography>
         <Typography variant="h4">{data.incidentKey}</Typography>
         <Typography variant="body2" color="text.secondary">

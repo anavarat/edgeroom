@@ -91,7 +91,7 @@ export async function createIncidentHandler(c: Ctx) {
     return errorResponse(c, 400, "VALIDATION_ERROR", "Validation failed", zodIssues(parsed.error));
   }
 
-  const incidentKey = `human:${crypto.randomUUID()}`;
+  const incidentKey = `manual:${crypto.randomUUID()}`;
 
   const triggerInput = {
     incidentKey,

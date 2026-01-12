@@ -34,11 +34,14 @@ import {
   useCreateRoomTask,
 } from "../hooks/useRoomMessages";
 import Box from "@mui/material/Box";
+import { useIncidents } from "../hooks/useIncidents";
+import { Link as RouterLink } from "react-router-dom";
 
 export default function RoomPage() {
   const { roomId } = useParams();
   const [state, dispatch] = useReducer(roomReducer, initialRoomState);
   const { data, isLoading, error } = useRoomStateQuery(roomId);
+  const { data: incidentsData } = useIncidents();
   const { identity } = useIdentity();
   const user = identity;
 
@@ -61,6 +64,13 @@ export default function RoomPage() {
     () => state.messages.slice(-20),
     [state.messages]
   );
+  const incidentKey = useMemo(() => {
+    if (!incidentsData?.incidents || !state.room?.id) return null;
+    const match = incidentsData.incidents.find(
+      (incident) => incident.room.id === state.room?.id
+    );
+    return match?.incidentKey ?? null;
+  }, [incidentsData?.incidents, state.room?.id]);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
 
   const formatDate = (value: string) => {
@@ -151,7 +161,7 @@ export default function RoomPage() {
       <Stack spacing={2} sx={{ flex: 1, minHeight: 0, width: "100%" }}>
         <Stack spacing={0.75}>
           <Typography variant="overline" color="text.secondary">
-            EdgeRoom • Incident
+            EdgeRoom • Incident Room
           </Typography>
           <Stack
             direction={{ xs: "column", md: "row" }}
@@ -162,6 +172,15 @@ export default function RoomPage() {
               {state.room?.name ?? "Incident Room"}
             </Typography>
             <Stack direction="row" spacing={2} sx={{ ml: { md: "auto" } }}>
+              {incidentKey && (
+                <Button
+                  component={RouterLink}
+                  to={`/incidents/${incidentKey}`}
+                  size="small"
+                >
+                  View incident
+                </Button>
+              )}
               <Typography variant="body2" color="text.secondary">
                 Created {state.room ? formatDate(state.room.createdAt) : "—"}
               </Typography>
