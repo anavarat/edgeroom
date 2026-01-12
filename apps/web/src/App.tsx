@@ -1,8 +1,7 @@
 // edgeroom/apps/web/src/App.tsx
-import Container from "@mui/material/Container";
-import Toolbar from "@mui/material/Toolbar";
 import { Route, Routes } from "react-router-dom";
-import AppHeader from "./components/AppHeader";
+import { Toolbar } from "@mui/material";
+import { AppShell } from "./components/AppShell";
 import IdentityPrompt from "./components/IdentityPrompt";
 import { useIdentity } from "./hooks/useIdentity";
 import IncidentsPage from "./pages/IncidentsPage";
@@ -17,18 +16,18 @@ function App() {
 
   return (
     <>
-      <AppHeader />
-      <Toolbar />
-      <Container sx={{ py: 3 }}>
+      <AppShell>
+        <Toolbar />
         <Routes>
           <Route path="/" element={<IncidentsPage />} />
           <Route path="/incidents/new" element={<NewIncidentPage />} />
           <Route path="/rooms/:roomId" element={<RoomPage />} />
         </Routes>
-      </Container>
+      </AppShell>
+
       <IdentityPrompt open={identityPromptOpen} />
     </>
   );
 }
 
-export default App
+export default App;
