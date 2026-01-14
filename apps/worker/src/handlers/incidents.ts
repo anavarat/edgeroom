@@ -1,12 +1,12 @@
 import type { Context } from "hono";
 import type { Bindings } from "../types";
 
-import { IncidentTriggerSchema, IncidentCreateSchema } from "@edgeroom/shared";
+import { IncidentTriggerSchema, IncidentCreateSchema, IncidentUpdateSchema } from "@edgeroom/shared";
 
 import { errorResponse, zodIssues } from "../utils/http";
 import { parseLimit, parseOffset } from "../utils/request";
 
-import { triggerIncident, listIncidents, getIncidentByKey } from "../services/incidentsService";
+import { triggerIncident, listIncidents, getIncidentByKey, updateIncidentStatus } from "../services/incidentsService";
 import { getRoomById } from "../services/roomsService";
 
 type App = { Bindings: Bindings };
@@ -121,4 +121,23 @@ export async function createIncidentHandler(c: Ctx) {
     },
     201
   );
+}
+
+/**
+ * PATCH /api/incidents/:incidentKey
+ * Update incident status (open/resolved).
+ */
+export async function updateIncidentHandler(c: Ctx) {
+  const incidentKey = c.req.param("incidentKey");
+  const body = await c.req.json().catch(() => null);
+  const parsed = IncidentUpdateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return errorResponse(c, 400, "VALIDATION_ERROR", "Validation failed", zodIssues(parsed.error));
+  }
+
+  const updated = await updateIncidentStatus(c.env, incidentKey, parsed.data.status);
+  if (!updated) return errorResponse(c, 404, "NOT_FOUND", "Incident not found");
+
+  return c.json(updated);
 }

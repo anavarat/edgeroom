@@ -73,6 +73,13 @@ export default function RoomPage() {
     );
     return match?.incidentKey ?? null;
   }, [incidentsData?.incidents, state.room?.id]);
+  const incidentStatus = useMemo(() => {
+    if (!incidentsData?.incidents || !state.room?.id) return null;
+    const match = incidentsData.incidents.find(
+      (incident) => incident.room.id === state.room?.id
+    );
+    return match?.status ?? null;
+  }, [incidentsData?.incidents, state.room?.id]);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
 
   const formatDate = (value: string) => {
@@ -182,6 +189,9 @@ export default function RoomPage() {
                 >
                   View incident
                 </Button>
+              )}
+              {incidentStatus === "resolved" && (
+                <Chip size="small" label="Resolved" color="success" />
               )}
               <Typography variant="body2" color="text.secondary">
                 Created {state.room ? formatDate(state.room.createdAt) : "—"}

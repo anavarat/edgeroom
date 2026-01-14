@@ -3,6 +3,7 @@
 import type { Bindings } from "../types";
 import type {
   IncidentTriggerInput,
+  IncidentStatus,
   Room,
   RoomEvent,
   Task,
@@ -84,9 +85,9 @@ export async function triggerIncident(
       ),
 
       env.DB.prepare(
-        `INSERT INTO incident_rooms (incident_key, room_id, created_at)
-         VALUES (?, ?, ?)`
-      ).bind(input.incidentKey, roomId, createdAt),
+        `INSERT INTO incident_rooms (incident_key, room_id, created_at, status)
+         VALUES (?, ?, ?, ?)`
+      ).bind(input.incidentKey, roomId, createdAt, "open"),
     ]);
 
     const event: RoomEvent = {
@@ -140,6 +141,8 @@ export async function getRoomIdForIncident(
 export type IncidentListItem = {
   incidentKey: string;
   incidentCreatedAt: string; // from incident_rooms.created_at
+  status: IncidentStatus;
+  resolvedAt?: string | null;
   room: Room;
 };
 
@@ -153,6 +156,8 @@ export async function listIncidents(
     `SELECT
        ir.incident_key as incidentKey,
        ir.created_at as incidentCreatedAt,
+       ir.status as status,
+       ir.resolved_at as resolvedAt,
        r.id as roomId,
        r.name as roomName,
        r.created_at as roomCreatedAt
@@ -169,6 +174,8 @@ export async function listIncidents(
   return rows.map((r) => ({
     incidentKey: r.incidentKey,
     incidentCreatedAt: r.incidentCreatedAt,
+    status: (r.status ?? "open") as IncidentStatus,
+    resolvedAt: r.resolvedAt,
     room: {
       id: r.roomId,
       name: r.roomName,
@@ -181,6 +188,8 @@ export async function listIncidents(
 export type IncidentDetail = {
   incidentKey: string;
   incidentCreatedAt: string;
+  status: IncidentStatus;
+  resolvedAt?: string | null;
   room: Room;
   events: RoomEvent[];
   tasks: Task[];
@@ -195,12 +204,20 @@ export async function getIncidentByKey(
     `SELECT
        incident_key as incidentKey,
        room_id as roomId,
-       created_at as incidentCreatedAt
+       created_at as incidentCreatedAt,
+       status as status,
+       resolved_at as resolvedAt
      FROM incident_rooms
      WHERE incident_key = ?`
   )
     .bind(incidentKey)
-    .first<{ incidentKey: string; roomId: string; incidentCreatedAt: string }>();
+    .first<{
+      incidentKey: string;
+      roomId: string;
+      incidentCreatedAt: string;
+      status: IncidentStatus;
+      resolvedAt?: string | null;
+    }>();
 
   if (!mapping?.roomId) return null;
 
@@ -215,8 +232,30 @@ export async function getIncidentByKey(
   return {
     incidentKey: mapping.incidentKey,
     incidentCreatedAt: mapping.incidentCreatedAt,
+    status: (mapping.status ?? "open") as IncidentStatus,
+    resolvedAt: mapping.resolvedAt ?? null,
     room,
     events,
     tasks,
   };
+}
+
+export async function updateIncidentStatus(
+  env: Bindings,
+  incidentKey: string,
+  status: IncidentStatus
+): Promise<{ status: IncidentStatus; resolvedAt?: string | null } | null> {
+  const resolvedAt = status === "resolved" ? nowIso() : null;
+
+  const res = await env.DB.prepare(
+    `UPDATE incident_rooms
+     SET status = ?, resolved_at = ?
+     WHERE incident_key = ?`
+  )
+    .bind(status, resolvedAt, incidentKey)
+    .run();
+
+  if (res.meta.changes === 0) return null;
+
+  return { status, resolvedAt };
 }

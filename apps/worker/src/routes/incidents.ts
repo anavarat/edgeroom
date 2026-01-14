@@ -6,6 +6,7 @@ import {
   getIncidentDetailHandler,
   triggerIncidentHandler,
   createIncidentHandler,
+  updateIncidentHandler,
 } from "../handlers/incidents";
 
 type App = { Bindings: Bindings };
@@ -15,3 +16,4 @@ incidentsRoutes.get("/", listIncidentsHandler);
 incidentsRoutes.get("/:incidentKey", getIncidentDetailHandler);
 incidentsRoutes.post("/trigger", triggerIncidentHandler);
 incidentsRoutes.post("/create", createIncidentHandler);
+incidentsRoutes.patch("/:incidentKey", updateIncidentHandler);
