@@ -3,8 +3,9 @@ import type {
   CreateChatMessageInput,
   CreateEventInput,
   CreateTaskInput,
+  UpdateTaskInput,
 } from "@edgeroom/shared";
-import { createRoomEvent, createRoomMessage, createRoomTask } from "../api/rooms";
+import { createRoomEvent, createRoomMessage, createRoomTask, updateRoomTask } from "../api/rooms";
 
 export function useCreateRoomMessage(roomId: string | undefined) {
   return useMutation({
@@ -35,6 +36,17 @@ export function useCreateRoomTask(roomId: string | undefined) {
         return Promise.reject(new Error("Room id required"));
       }
       return createRoomTask(roomId, input);
+    },
+  });
+}
+
+export function useUpdateRoomTask(roomId: string | undefined) {
+  return useMutation({
+    mutationFn: ({ taskId, input }: { taskId: string; input: UpdateTaskInput }) => {
+      if (!roomId) {
+        return Promise.reject(new Error("Room id required"));
+      }
+      return updateRoomTask(roomId, taskId, input);
     },
   });
 }

@@ -32,6 +32,7 @@ import {
   useCreateRoomEvent,
   useCreateRoomMessage,
   useCreateRoomTask,
+  useUpdateRoomTask,
 } from "../hooks/useRoomMessages";
 import Box from "@mui/material/Box";
 import { useIncidents } from "../hooks/useIncidents";
@@ -48,6 +49,7 @@ export default function RoomPage() {
   const createMessage = useCreateRoomMessage(roomId);
   const createEvent = useCreateRoomEvent(roomId);
   const createTask = useCreateRoomTask(roomId);
+  const updateTask = useUpdateRoomTask(roomId);
 
   const [messageText, setMessageText] = useState("");
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -218,11 +220,26 @@ export default function RoomPage() {
                             task.assignee ? ` • Assigned to ${task.assignee}` : ""
                           }`}
                         />
-                        <Chip
-                          size="small"
-                          label={task.status}
-                          color={task.status === "done" ? "success" : "default"}
-                        />
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Chip
+                            size="small"
+                            label={task.status}
+                            color={task.status === "done" ? "success" : "default"}
+                          />
+                          {task.status !== "done" && (
+                            <Button
+                              size="small"
+                              onClick={() =>
+                                updateTask.mutateAsync({
+                                  taskId: task.id,
+                                  input: { status: "done" },
+                                })
+                              }
+                            >
+                              Mark done
+                            </Button>
+                          )}
+                        </Stack>
                       </ListItem>
                     ))}
                   </List>

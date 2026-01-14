@@ -3,9 +3,9 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
-		"deploy": "wrangler types && wrangler deploy",
-		"dev": "wrangler types && wrangler dev",
-		"start": "wrangler types && wrangler dev",
+		"deploy": "wrangler types && wrangler deploy --env prod",
+		"dev": "wrangler types && wrangler dev --env local",
+		"start": "wrangler types && wrangler dev --env local",
 		"cf-typegen": "wrangler types"
 	},
 	"devDependencies": {
