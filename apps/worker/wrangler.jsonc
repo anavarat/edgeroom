@@ -4,7 +4,7 @@
  */
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-	"name": "worker",
+	"name": "edgeroom-svc",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-01-07",
 	"migrations": [
@@ -27,11 +27,11 @@
 		{
 			"binding": "DB",
 			"database_name": "incident-room-db",
-			"database_id": "LOCAL"
+			"database_id": "e0a5fe1e-47c0-4312-af6b-b1491ee20bdd"
 		}
 	],
 	"env": {
-    "dev": {
+    "local": {
 			"workers_dev": true,
     	"preview_urls": true,
 			"durable_objects": {
@@ -46,7 +46,7 @@
         {
           "binding": "DB",
           "database_name": "incident-room-db",
-          "database_id": "e0a5fe1e-47c0-4312-af6b-b1491ee20bdd"
+          "database_id": "LOCAL"
         }
       ],
     },
