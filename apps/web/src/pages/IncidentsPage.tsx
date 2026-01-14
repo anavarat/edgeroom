@@ -12,7 +12,6 @@ import TableRow from "@mui/material/TableRow";
 import TableContainer from "@mui/material/TableContainer";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
-import Typography from "@mui/material/Typography";
 
 import { useIncidents } from "../hooks/useIncidents";
 
