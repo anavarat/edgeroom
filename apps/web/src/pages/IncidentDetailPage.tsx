@@ -2,11 +2,12 @@ import { useMemo } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useIncidentDetail } from "../hooks/useIncidentDetail";
+import { useIncidentDetail, useUpdateIncident } from "../hooks/useIncidentDetail";
 
 type TimelineItem = {
   id: string;
@@ -24,6 +25,7 @@ function formatDate(value: string) {
 export default function IncidentDetailPage() {
   const { incidentKey } = useParams();
   const { data, isLoading, error } = useIncidentDetail(incidentKey);
+  const updateIncident = useUpdateIncident(incidentKey);
 
   const timeline = useMemo<TimelineItem[]>(() => {
     if (!data) return [];
@@ -66,7 +68,31 @@ export default function IncidentDetailPage() {
         <Typography variant="overline" color="text.secondary">
           EdgeRoom • Incident detail
         </Typography>
-        <Typography variant="h4">{data.incidentKey}</Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
+          <Typography variant="h4">{data.incidentKey}</Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            {data.status === "resolved" ? (
+              <Chip size="small" label="Resolved" color="success" />
+            ) : (
+              <Chip size="small" label="Open" />
+            )}
+            {data.resolvedAt && (
+              <Typography variant="body2" color="text.secondary">
+                {formatDate(data.resolvedAt)}
+              </Typography>
+            )}
+          </Stack>
+          {data.status !== "resolved" && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => updateIncident.mutateAsync({ status: "resolved" })}
+              sx={{ ml: { sm: "auto" } }}
+            >
+              Mark resolved
+            </Button>
+          )}
+        </Stack>
         <Typography variant="body2" color="text.secondary">
           Created {formatDate(data.incidentCreatedAt)}
         </Typography>

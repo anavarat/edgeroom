@@ -28,6 +28,11 @@ export const IncidentCreateSchema = z.object({
   createdBy: PresenceSchema, // human
 });
 
+export const IncidentStatusSchema = z.enum(["open", "resolved"]);
+
+export const IncidentUpdateSchema = z.object({
+  status: IncidentStatusSchema,
+});
 
 export const CreateTaskSchema = z.object({
   title: z.string().min(1).max(200),

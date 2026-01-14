@@ -10,6 +10,8 @@ import {
   UpdateTaskSchema,
   IncidentTriggerSchema,
   IncidentCreateSchema,
+  IncidentStatusSchema,
+  IncidentUpdateSchema,
   WsHelloSchema,
   CreateChatMessageSchema,
 } from "./schemas";
@@ -26,13 +28,14 @@ export type CreateTaskInput = z.infer<typeof CreateTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof UpdateTaskSchema>;
 export type IncidentTriggerInput = z.infer<typeof IncidentTriggerSchema>;
 export type IncidentCreateInput = z.infer<typeof IncidentCreateSchema>;
+export type IncidentStatus = z.infer<typeof IncidentStatusSchema>;
+export type IncidentUpdateInput = z.infer<typeof IncidentUpdateSchema>;
 export type CreateChatMessageInput = z.infer<typeof CreateChatMessageSchema>;
 export type WsClientHello = z.infer<typeof WsHelloSchema>;
 
 
 
   
-
 
 
 

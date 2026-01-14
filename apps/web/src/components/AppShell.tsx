@@ -38,7 +38,13 @@ export function AppShell({ children }: AppShellProps) {
   const navItems = [
     { label: "Dashboard", to: "/", icon: <DashboardIcon /> },
     { label: "Create Incident", to: "/incidents/new", icon: <AddIcon /> },
-    { label: "Generate Demo Incident", to: "/incidents/new", icon: <AutoAwesomeIcon />, action: "demo" as const },
+    {
+      label: "Generate Demo Incident",
+      to: "/incidents/new",
+      icon: <AutoAwesomeIcon />,
+      action: "demo" as const,
+      key: "demo-incident",
+    },
   ];
 
   const drawer = (
@@ -56,7 +62,7 @@ export function AppShell({ children }: AppShellProps) {
           const selected = location.pathname === item.to;
           return (
             <ListItemButton
-              key={item.to}
+              key={item.key ?? item.to}
               component={item.action ? "button" : RouterLink}
               to={item.action ? undefined : item.to}
               selected={selected}

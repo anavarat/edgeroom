@@ -10,6 +10,8 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TableContainer from "@mui/material/TableContainer";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 import Typography from "@mui/material/Typography";
 
 import { useIncidents } from "../hooks/useIncidents";
@@ -80,7 +82,14 @@ export default function IncidentsPage() {
                   <TableCell>
                     {new Date(incident.incidentCreatedAt).toLocaleString()}
                   </TableCell>
-                  <TableCell>{incident.room.name}</TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="body2">{incident.room.name}</Typography>
+                    {incident.status === "resolved" && (
+                      <Chip size="small" label="Resolved" color="success" />
+                    )}
+                  </Stack>
+                </TableCell>
                   <TableCell align="right">
                     <Button component={RouterLink} to={`/rooms/${incident.room.id}`}>
                       View
